@@ -1,0 +1,186 @@
+
+<style>
+@import url('https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:var(--color-background-tertiary);min-height:100dvh;display:flex;flex-direction:column;}
+.appbar{background:#1565C0;color:#fff;text-align:center;padding:14px 16px;font-size:26px;font-weight:700;letter-spacing:-0.3px;flex-shrink:0;}
+.section-row{background:var(--color-background-primary);padding:10px 10px;display:flex;align-items:center;gap:6px;border-bottom:0.5px solid var(--color-border-tertiary);flex-shrink:0;}
+.row-label{font-size:22px;flex-shrink:0;}
+.btn-group{display:flex;flex:1;gap:6px;}
+.chip-btn{flex:1;padding:12px 4px;border:2.5px solid #1565C0;border-radius:14px;font-size:22px;background:transparent;color:#1565C0;cursor:pointer;transition:all 0.15s;font-family:inherit;font-weight:700;text-align:center;}
+.chip-btn.active{background:#1565C0;color:#fff;}
+.chip-btn:active{transform:scale(0.96);}
+.fuel-btn{flex:1;padding:12px 2px;border-radius:14px;font-size:20px;cursor:pointer;background:transparent;font-family:inherit;transition:all 0.15s;border:2.5px solid;font-weight:700;text-align:center;}
+.fuel-btn.lv5{border-color:#2e7d32;color:#2e7d32;}
+.fuel-btn.lv4{border-color:#43a047;color:#43a047;}
+.fuel-btn.lv3{border-color:#f9a825;color:#f9a825;}
+.fuel-btn.lv2{border-color:#ef6c00;color:#ef6c00;}
+.fuel-btn.lv1{border-color:#e53935;color:#e53935;}
+.fuel-btn.lv0{border-color:var(--color-border-secondary);color:var(--color-text-tertiary);font-size:18px;}
+.fuel-btn.active.lv5{background:#2e7d32;color:#fff;}
+.fuel-btn.active.lv4{background:#43a047;color:#fff;}
+.fuel-btn.active.lv3{background:#f9a825;color:#fff;}
+.fuel-btn.active.lv2{background:#ef6c00;color:#fff;}
+.fuel-btn.active.lv1{background:#e53935;color:#fff;}
+.fuel-btn.active.lv0{background:var(--color-background-secondary);color:var(--color-text-secondary);}
+.stt-row{background:var(--color-background-primary);padding:10px 10px;display:flex;align-items:stretch;gap:6px;border-bottom:0.5px solid var(--color-border-tertiary);flex-shrink:0;}
+.stt-btn{flex:0 0 auto;padding:12px 18px;border:2.5px solid #888;border-radius:14px;font-size:22px;background:transparent;color:var(--color-text-secondary);cursor:pointer;transition:all 0.2s;font-family:inherit;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px;}
+.stt-btn.listening{border-color:#E53935;color:#E53935;animation:pb 1s infinite;}
+@keyframes pb{0%,100%{opacity:1}50%{opacity:0.55}}
+.stt-hint{flex:1;font-size:20px;color:var(--color-text-tertiary);display:flex;align-items:center;padding:0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mode-bar{background:#fff8e1;padding:10px 14px;text-align:center;font-size:20px;font-weight:700;color:#e65100;border-bottom:1px solid #ffe082;flex-shrink:0;}
+#map-container{height:50vh;padding:8px;flex-shrink:0;}
+#map{width:100%;height:100%;border-radius:12px;border:2px solid #1565C0;}
+.bottom{background:var(--color-background-primary);padding:14px 10px 20px;flex-shrink:0;border-top:0.5px solid var(--color-border-tertiary);}
+.loc-label{font-size:18px;color:var(--color-text-tertiary);margin-bottom:4px;font-weight:500;}
+.loc-val{font-size:30px;font-weight:700;color:#1565C0;margin-bottom:12px;line-height:1.3;min-height:38px;}
+.copy-btn{width:100%;padding:18px;background:#fdd835;border:none;border-radius:14px;font-size:24px;font-weight:700;color:#222;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background 0.2s,transform 0.1s;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+.copy-btn:active{transform:scale(0.97);}
+.copy-btn.copied{background:#43a047;color:#fff;}
+.guide{text-align:center;font-size:18px;color:var(--color-text-tertiary);margin-top:9px;}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+
+<div class="appbar">🚗 주차 관리 시스템</div>
+
+<div class="section-row">
+  <span class="row-label">🚙</span>
+  <div class="btn-group">
+    <button class="chip-btn active" id="btn-v1" onclick="selectCar('203하6765 베뉴','btn-v1')">베뉴 6765</button>
+    <button class="chip-btn" id="btn-v2" onclick="selectCar('203하6766 베뉴','btn-v2')">베뉴 6766</button>
+    <button class="chip-btn" id="btn-cp" onclick="selectCar('캐스퍼','btn-cp')">캐스퍼</button>
+  </div>
+</div>
+
+<div class="section-row" id="fuel-row">
+  <span class="row-label">⛽</span>
+  <div class="btn-group">
+    <button class="fuel-btn lv5" id="fs5" onclick="setFuel(5)">5/N</button>
+    <button class="fuel-btn lv4" id="fs4" onclick="setFuel(4)">4/N</button>
+    <button class="fuel-btn lv3" id="fs3" onclick="setFuel(3)">3/N</button>
+    <button class="fuel-btn lv2" id="fs2" onclick="setFuel(2)">2/N</button>
+    <button class="fuel-btn lv1" id="fs1" onclick="setFuel(1)">1/N</button>
+    <button class="fuel-btn lv0" id="fs0" onclick="setFuel(0)">없음</button>
+  </div>
+</div>
+
+<div class="stt-row">
+  <button class="stt-btn" id="stt-btn" onclick="toggleSTT()">
+    <span id="stt-icon">🎙️</span>
+    <span id="stt-label">음성 입력</span>
+  </button>
+  <div class="stt-hint" id="stt-hint">"오베뉴 지하 세칸"</div>
+</div>
+
+<div class="mode-bar" id="mode-bar">🗺️ 지도를 탭하면 마커가 변신해요!</div>
+
+<div id="map-container"><div id="map"></div></div>
+
+<div class="bottom">
+  <div class="loc-label">📍 선택된 위치</div>
+  <div class="loc-val" id="loc-val">위치를 선택해주세요</div>
+  <button class="copy-btn" id="copy-btn" onclick="copyMessage()">
+    <span id="btn-icon">📋</span>
+    <span id="btn-text">위치 메시지 복사 (카톡 전송용)</span>
+  </button>
+  <div class="guide">내 폰: 복사 후 카카오톡 → 채팅창 길게 누르기 → 붙여넣기</div>
+</div>
+
+<script>
+const animals=[
+  {emoji:'📍',name:'일반',msg:null},
+  {emoji:'🐶',name:'강아지',msg:'멍멍! 여기 주차하면 꼬리칠게요!'},
+  {emoji:'🐱',name:'고양이',msg:'냥~ 여기 내 구역이에요.'},
+  {emoji:'🐷',name:'돼지',msg:'꿀꿀~ 맛있는 자리 찾았다!'},
+  {emoji:'🐮',name:'소',msg:'음메~ 이 넓은 자리 딱이네요.'},
+  {emoji:'🐻',name:'곰',msg:'으르렁! 곰이 점령한 구역입니다.'},
+  {emoji:'🐰',name:'토끼',msg:'깡충깡충! 여기까지 뛰어왔어요.'},
+  {emoji:'🐔',name:'닭',msg:'꼬끼오~ 새벽부터 자리 맡았어요.'},
+];
+const locations=[
+  {name:'지하주차장',pos:[37.476878,126.523374]},
+  {name:'주차장 입구 A공터',pos:[37.476729,126.522995]},
+  {name:'퇴근시 나가는 쪽 길가 B공터',pos:[37.476613,126.524049]},
+  {name:'남쪽 C공터',pos:[37.47615,126.523360]},
+  {name:'공사장 입구 D공터',pos:[37.476385,126.522816]},
+  {name:'남쪽 E공터',pos:[37.476242,126.523775]},
+  {name:'남쪽 F공터',pos:[37.476059,126.523025]},
+  {name:'공사장 G공터',pos:[37.476638,126.522514]},
+  {name:'남쪽 H공터',pos:[37.47589,126.523507]},
+  {name:'스타리아 주로 대는 I공터',pos:[37.475827,126.523229]},
+  {name:'가장 먼 남쪽 J공터',pos:[37.475652,126.523681]},
+];
+const CAR_ALIASES={
+  '오베뉴':'btn-v1','5베뉴':'btn-v1','오번베뉴':'btn-v1','베뉴오':'btn-v1','베뉴5':'btn-v1','베뉴육천칠백육십오':'btn-v1','6765':'btn-v1','베뉴6765':'btn-v1','베뉴 6765':'btn-v1','첫번째베뉴':'btn-v1','첫베뉴':'btn-v1',
+  '육베뉴':'btn-v2','6베뉴':'btn-v2','육번베뉴':'btn-v2','베뉴육':'btn-v2','베뉴6':'btn-v2','베뉴육천칠백육십육':'btn-v2','6766':'btn-v2','베뉴6766':'btn-v2','베뉴 6766':'btn-v2','두번째베뉴':'btn-v2','둘째베뉴':'btn-v2',
+  '캐스퍼':'btn-cp','캐스파':'btn-cp','캐스퍼차':'btn-cp','캐스파차':'btn-cp',
+};
+const CAR_NAMES={'btn-v1':'203하6765 베뉴','btn-v2':'203하6766 베뉴','btn-cp':'캐스퍼'};
+const FUEL_ALIASES={'5칸':5,'다섯칸':5,'오칸':5,'5분의5':5,'가득':5,'풀':5,'만땅':5,'꽉':5,'완전':5,'4칸':4,'네칸':4,'사칸':4,'5분의4':4,'3칸':3,'세칸':3,'삼칸':3,'5분의3':3,'절반':3,'반':3,'2칸':2,'두칸':2,'이칸':2,'5분의2':2,'1칸':1,'한칸':1,'일칸':1,'5분의1':1,'거의없어':1,'거의없음':1,'부족':1,'빨간불':1,'없음':0,'없어':0,'연료없음':0,'안넣음':0,'미입력':0};
+const LOC_ALIASES={};
+locations.forEach(l=>{LOC_ALIASES[l.name.replace(/\s/g,'').toLowerCase()]=l.name;LOC_ALIASES[l.name.toLowerCase()]=l.name;});
+Object.assign(LOC_ALIASES,{'지하':locations[0].name,'지하주차장':locations[0].name,'a공터':locations[1].name,'에이공터':locations[1].name,'에이':locations[1].name,'b공터':locations[2].name,'비공터':locations[2].name,'퇴근':locations[2].name,'비':locations[2].name,'c공터':locations[3].name,'씨공터':locations[3].name,'씨':locations[3].name,'d공터':locations[4].name,'디공터':locations[4].name,'공사장입구':locations[4].name,'디':locations[4].name,'e공터':locations[5].name,'이공터':locations[5].name,'f공터':locations[6].name,'에프공터':locations[6].name,'g공터':locations[7].name,'지공터':locations[7].name,'공사장g':locations[7].name,'h공터':locations[8].name,'에이치공터':locations[8].name,'i공터':locations[9].name,'아이공터':locations[9].name,'스타리아':locations[9].name,'j공터':locations[10].name,'제이공터':locations[10].name,'가장먼':locations[10].name,'제일먼':locations[10].name});
+
+let modeIndex=0,selectedLoc='',currentCar='203하6765 베뉴',currentBtn='btn-v1',fuelLevel=-1;
+let markers=[],markerMap={},recognition=null,isListening=false;
+
+function selectCar(name,btnId){currentCar=name;currentBtn=btnId;document.querySelectorAll('.chip-btn').forEach(b=>b.classList.remove('active'));document.getElementById(btnId).classList.add('active');resetCopy();}
+function setFuel(lv){fuelLevel=lv;['fs0','fs1','fs2','fs3','fs4','fs5'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});const el=document.getElementById('fs'+lv);if(el)el.classList.add('active');resetCopy();}
+
+function makeEmojiIcon(emoji){const c=document.createElement('canvas');c.width=50;c.height=50;const ctx=c.getContext('2d');ctx.font='38px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(emoji,25,25);return L.icon({iconUrl:c.toDataURL(),iconSize:[45,45],iconAnchor:[22,45],popupAnchor:[0,-45]});}
+
+const map=L.map('map').setView([37.4763,126.5233],17);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+locations.forEach(loc=>{
+  const m=L.marker(loc.pos).addTo(map);
+  m.bindTooltip(loc.name,{sticky:true,direction:'top'});
+  m.on('click',e=>{L.DomEvent.stopPropagation(e);selectedLoc=loc.name;document.getElementById('loc-val').textContent=loc.name;resetCopy();const a=animals[modeIndex];if(a.msg){const h=Math.floor(Math.random()*5)+1;m.bindPopup(`${a.emoji} ${loc.name}<br>주차 ${h}시간 경과<br>${a.msg}`).openPopup();}});
+  markers.push(m);markerMap[loc.name]=m;
+});
+map.on('click',()=>{modeIndex=(modeIndex+1)%animals.length;const a=animals[modeIndex];document.getElementById('mode-bar').textContent=modeIndex===0?'🗺️ 일반 모드 — 탭하면 마커 변신!':a.emoji+' '+a.name+' 모드 활성화!';markers.forEach(m=>{m.setIcon(modeIndex===0?new L.Icon.Default():makeEmojiIcon(a.emoji));if(m.getPopup())m.closePopup();});});
+
+function resetCopy(){const b=document.getElementById('copy-btn');b.classList.remove('copied');document.getElementById('btn-icon').textContent='📋';document.getElementById('btn-text').textContent='위치 메시지 복사 (카톡 전송용)';}
+function copyMessage(){
+  if(!selectedLoc){alert('지도에서 위치를 먼저 선택해주세요.');return;}
+  const a=animals[modeIndex];const atag=a.msg?' '+a.emoji:'';const fstr=fuelLevel>0?' | 연료 '+fuelLevel+'/5칸':'';
+  const msg='['+currentCar+'] 주차 위치: '+selectedLoc+fstr+atag+'\n다음 운전자는 이곳으로 이동 바랍니다.';
+  const inp=document.createElement('input');inp.type='text';inp.readOnly=true;inp.value=msg;inp.style.cssText='position:fixed;top:0;left:0;width:2em;height:2em;font-size:16px;opacity:0;';document.body.appendChild(inp);inp.focus();inp.setSelectionRange(0,9999);
+  let ok=false;try{ok=document.execCommand('copy');}catch(e){}document.body.removeChild(inp);
+  if(!ok&&navigator.clipboard){navigator.clipboard.writeText(msg).then(showCopied).catch(()=>alert('복사 실패:\n'+msg));return;}
+  ok?showCopied():alert('복사 실패:\n'+msg);
+}
+function showCopied(){const b=document.getElementById('copy-btn');b.classList.add('copied');document.getElementById('btn-icon').textContent='✅';document.getElementById('btn-text').textContent='복사 완료! → 카톡에 붙여넣기 하세요';}
+
+function parseSTT(text){
+  const raw=text;const t=text.replace(/\s/g,'').toLowerCase();let got={car:null,loc:null,fuel:null};
+  for(const [k,v] of Object.entries(CAR_ALIASES)){if(t.includes(k.replace(/\s/g,'').toLowerCase())){got.car=v;break;}}
+  const numMatch=t.match(/([일이삼사오다섯1-5])칸/);
+  if(numMatch){const nm={'일':1,'1':1,'이':2,'2':2,'삼':3,'3':3,'사':4,'4':4,'오':5,'다섯':5,'5':5};const n=nm[numMatch[1]];if(n!==undefined)got.fuel=n;}
+  if(got.fuel===null){for(const [k,v] of Object.entries(FUEL_ALIASES)){if(t.includes(k.replace(/\s/g,'').toLowerCase())){got.fuel=v;break;}}}
+  for(const [k,v] of Object.entries(LOC_ALIASES)){if(t.includes(k.replace(/\s/g,'').toLowerCase())){got.loc=v;break;}}
+  const applied=[];
+  if(got.car){selectCar(CAR_NAMES[got.car],got.car);applied.push('차량: '+CAR_NAMES[got.car]);}
+  if(got.fuel!==null){setFuel(got.fuel);applied.push(got.fuel>0?'연료: '+got.fuel+'/5칸':'연료: 없음');}
+  if(got.loc){selectedLoc=got.loc;document.getElementById('loc-val').textContent=got.loc;resetCopy();const mk=markerMap[got.loc];if(mk){map.setView(mk.getLatLng(),18);mk.openTooltip();}applied.push('위치: '+got.loc);}
+  const hint=document.getElementById('stt-hint');
+  if(applied.length>0){hint.textContent='✅ '+applied.join(' / ');hint.style.color='var(--color-text-success)';}
+  else{hint.textContent='❓ 매칭 안됨: "'+raw+'"';hint.style.color='var(--color-text-danger)';}
+}
+
+function toggleSTT(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('Chrome 또는 Safari를 사용해주세요.');return;}
+  if(isListening){recognition&&recognition.stop();return;}
+  recognition=new SR();recognition.lang='ko-KR';recognition.interimResults=true;recognition.maxAlternatives=5;
+  recognition.onstart=()=>{isListening=true;document.getElementById('stt-btn').classList.add('listening');document.getElementById('stt-icon').textContent='🔴';document.getElementById('stt-label').textContent='듣는 중...';document.getElementById('stt-hint').textContent='말씀해 주세요...';document.getElementById('stt-hint').style.color='var(--color-text-secondary)';};
+  recognition.onend=()=>{isListening=false;document.getElementById('stt-btn').classList.remove('listening');document.getElementById('stt-icon').textContent='🎙️';document.getElementById('stt-label').textContent='음성 입력';};
+  recognition.onresult=(e)=>{
+    const last=e.results[e.results.length-1];document.getElementById('stt-hint').textContent=last[0].transcript;
+    if(last.isFinal){let best=last[0].transcript;for(let i=1;i<last.length;i++){const alt=last[i].transcript;const score=(s)=>{const t=s.replace(/\s/g,'').toLowerCase();let sc=0;for(const k of Object.keys(CAR_ALIASES))if(t.includes(k.toLowerCase()))sc++;for(const k of Object.keys(FUEL_ALIASES))if(t.includes(k.toLowerCase()))sc++;for(const k of Object.keys(LOC_ALIASES))if(t.includes(k.toLowerCase()))sc++;return sc;};if(score(alt)>score(best))best=alt;}parseSTT(best);}
+  };
+  recognition.onerror=(e)=>{document.getElementById('stt-hint').textContent='오류: '+e.error;document.getElementById('stt-hint').style.color='var(--color-text-danger)';};
+  recognition.start();
+}
+setTimeout(()=>map.invalidateSize(),400);
+</script>
