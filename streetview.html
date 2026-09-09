@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>영종구노인인력개발센터 — 오시는 길 & 3D 안내도</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+
+  :root{
+    --bg:#0d1b1e; --panel:#122a2e; --line:#1f4b4f;
+    --ink:#eaf4f2; --muted:#8fb0ac; --accent:#ffb454; --accent2:#4fd1c5;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    overflow:hidden;}
+  #scene{position:fixed;inset:0;}
+
+  #topbar{
+    position:fixed; top:40px; left:0; right:0; padding:16px 18px 12px;
+    background:linear-gradient(180deg, rgba(13,27,30,0.95), rgba(13,27,30,0));
+    pointer-events:none; z-index:5;
+  }
+  #topbar h1{ margin:0; font-size:17px; font-weight:700; letter-spacing:-0.2px; }
+  #topbar p{ margin:4px 0 0; font-size:12.5px; color:var(--muted); }
+
+  #panel{
+    position:fixed; left:0; right:0; bottom:0; background:var(--panel);
+    border-top:1px solid var(--line); border-radius:18px 18px 0 0;
+    padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+    z-index:10; box-shadow:0 -8px 24px rgba(0,0,0,0.35);
+  }
+  #load-row{ display:flex; gap:8px; align-items:center; }
+  #load-btn{
+    flex:1; border:none; border-radius:10px; padding:13px 16px;
+    font-size:15px; font-weight:600; cursor:pointer; background:var(--accent2); color:#04201d;
+  }
+  #load-btn:disabled{ background:#2a4a48; color:#6f9490; }
+  #radius{ width:84px; }
+  #radius-val{ font-size:12px; color:var(--muted); min-width:56px; text-align:right; }
+
+  #status{ margin-top:10px; font-size:13px; color:var(--muted); min-height:34px; line-height:1.5; }
+  #status.warn{ color:var(--accent); }
+  #status.good{ color:var(--accent2); }
+
+  #reset-btn{
+    margin-top:6px; background:none; border:1px solid var(--line); color:var(--muted);
+    border-radius:8px; padding:8px 12px; font-size:12.5px; cursor:pointer; display:none;
+  }
+
+  #kakao-row{ display:flex; gap:8px; margin-top:10px; }
+  #kakao-btn{
+    flex:1; border:none; border-radius:10px; padding:14px 16px;
+    font-size:15px; font-weight:700; cursor:pointer;
+    background:linear-gradient(135deg,#FEE500,#FFD600); color:#3a2e00;
+  }
+  #kakao-btn:disabled{ background:#3a4a3f; color:#77887e; }
+  #kakao-btn .ic{ font-size:16px; margin-right:6px; }
+  #kakao-dest{ font-size:11.5px; color:var(--muted); margin-top:6px; min-height:16px; }
+
+  #legend{
+    position:fixed; left:14px; top:106px; z-index:5;
+    background:rgba(18,42,46,0.85); border:1px solid var(--line);
+    border-radius:10px; padding:8px 10px; font-size:11px; color:var(--muted);
+    pointer-events:none; line-height:1.7;
+  }
+  #legend span{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px;}
+
+  #hint{
+    position:fixed; left:0; right:0; bottom:96px; text-align:center;
+    font-size:12.5px; color:var(--muted); pointer-events:none; z-index:6;
+    padding:0 20px; transition:opacity .3s;
+  }
+
+
+  :root{
+    --cream:#F5F2EA;
+    --ink:#2B2A26;
+    --sub:#6b6858;
+    --blue-top:#BFD9EC;
+    --blue-side:#8FB6D3;
+    --gold-top:#F2E1AD;
+    --gold-side:#D9BE72;
+    --orange-top:#F8DAB4;
+    --orange-side:#E3A664;
+    --gray-top:#DEDBD3;
+    --gray-side:#B7B3A9;
+    --green-top:#CFE9D6;
+    --green-side:#98C7A6;
+    --red:#C0392B;
+    --line:#33312B;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);overflow:hidden;}
+  #wrap{position:relative;width:100%;height:100%;}
+  canvas{display:block;touch-action:none;}
+  #printSnapshot{display:none;}
+
+  #hud{
+    position:absolute; top:56px; left:16px; z-index:5;
+    max-width:300px;
+  }
+  #titleCard{
+    background:rgba(255,255,255,0.88); backdrop-filter:blur(4px);
+    border:1px solid #E4DFCF; border-radius:14px; padding:14px 16px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.08);
+  }
+  #titleCard h1{margin:0 0 4px; font-size:16px; font-weight:800; letter-spacing:-0.2px; color:var(--ink);}
+  #titleCard p{margin:0; font-size:12.5px; color:var(--sub); line-height:1.5;}
+  #titleCard .steps{margin-top:8px; font-size:12.5px; line-height:1.6; color:var(--ink);}
+  #titleCard .steps b{color:var(--red);}
+
+  #legend{
+    margin-top:10px; background:rgba(255,255,255,0.88); backdrop-filter:blur(4px);
+    border:1px solid #E4DFCF; border-radius:14px; padding:10px 14px;
+    font-size:12px; color:var(--ink); box-shadow:0 6px 20px rgba(0,0,0,0.08);
+  }
+  #legend .row{display:flex; align-items:center; gap:8px; margin:4px 0;}
+  #legend .sw{width:12px;height:12px;border-radius:3px; flex:0 0 auto;}
+
+  #controlsHint{
+    position:absolute; bottom:16px; left:16px; z-index:5;
+    background:rgba(43,42,38,0.78); color:#fff; font-size:11.5px;
+    padding:8px 12px; border-radius:10px; line-height:1.6;
+  }
+
+  #viewBtns{
+    position:absolute; top:56px; right:16px; z-index:5;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  #viewBtns button{
+    background:#fff; border:1px solid #E4DFCF; border-radius:10px;
+    padding:9px 14px; font-size:12.5px; font-weight:700; color:var(--ink);
+    cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.07);
+  }
+  #viewBtns button:hover{background:#FBF9F3;}
+  #viewBtns button:active{transform:translateY(1px);}
+
+  #bottomRight{
+    position:absolute; right:16px; bottom:16px; z-index:5;
+    display:flex; flex-direction:column-reverse; align-items:flex-end; gap:10px;
+  }
+
+  #infoPanel{
+    width:260px; background:rgba(255,255,255,0.95); border:1px solid #E4DFCF;
+    border-radius:14px; padding:14px 16px; box-shadow:0 6px 20px rgba(0,0,0,0.1);
+    display:none; position:relative;
+  }
+  #infoPanel.show{display:block;}
+  #infoPanel .tag{
+    display:inline-block; font-size:11px; font-weight:800; padding:2px 8px;
+    border-radius:20px; margin-bottom:6px;
+  }
+  #infoPanel h2{margin:0 0 4px; font-size:16px; font-weight:800; color:var(--ink);}
+  #infoPanel p{margin:2px 0; font-size:12.5px; color:var(--sub);}
+  #infoPanel .close{
+    position:absolute; top:8px; right:10px; cursor:pointer; color:#a39d89; font-size:14px;
+  }
+
+  /* ---------- 길 안내 카드 ---------- */
+  #routeCard{
+    position:absolute; right:16px; top:50%; transform:translateY(-50%); z-index:6;
+    width:280px; background:rgba(255,255,255,0.95); backdrop-filter:blur(4px);
+    border:1px solid #E4DFCF; border-radius:16px; padding:18px 18px 16px;
+    box-shadow:0 12px 32px rgba(0,0,0,0.16);
+    text-align:center;
+  }
+  #routeCard .destTag{
+    display:inline-block; font-size:11px; font-weight:800; color:#fff;
+    background:var(--red); border-radius:20px; padding:3px 12px; margin-bottom:8px;
+  }
+  #routeCard h2{margin:0 0 4px; font-size:17px; font-weight:800; color:var(--ink);}
+  #routeCard .addr{font-size:12px; color:var(--sub); line-height:1.5; margin-bottom:14px;}
+  #routeCard .bigBtn{
+    width:100%; border:none; cursor:pointer;
+    background:linear-gradient(135deg,#FEE500,#FFD600);
+    color:#3A2E00; font-weight:800; font-size:15px;
+    padding:14px 0; border-radius:12px;
+    box-shadow:0 4px 14px rgba(254,229,0,0.45);
+  }
+  #routeCard .bigBtn:active{transform:translateY(1px);}
+  #routeCard .bigBtn .ic{font-size:17px; margin-right:6px;}
+  #routeCard .fallback{
+    margin-top:10px; font-size:11px; color:var(--sub); line-height:1.6;
+  }
+  #routeCard .fallback a{color:#1f6fb2; text-decoration:none; font-weight:700;}
+  #routeCard .hdl{
+    margin-top:14px; font-size:11px; color:#9a9584; border-top:1px dashed #E4DFCF; padding-top:9px; line-height:1.6;
+  }
+
+  @media (max-width:760px){
+    #routeCard{ position:absolute; right:12px; left:12px; top:auto; bottom:78px; transform:none; width:auto; }
+  }
+
+  .lbl{
+    position:absolute; transform:translate(-50%,-50%);
+    font-size:15px; font-weight:800; color:var(--ink); letter-spacing:-0.2px;
+    background:transparent; padding:5px 10px; border-radius:9px;
+    white-space:nowrap; max-width:160px; text-align:center; line-height:1.25;
+    pointer-events:none; border:none; box-shadow:none;
+    text-shadow:0 1px 3px rgba(255,255,255,0.85), 0 0px 6px rgba(255,255,255,0.6);
+  }
+  .lbl.current{
+    background:var(--red); color:#fff; border-color:var(--red);
+    font-size:14px; font-weight:800; max-width:110px;
+  }
+  .lbl.small{font-size:12px; font-weight:700; opacity:0.9; max-width:90px;}
+
+  .lbl.section{
+    font-size:14px; font-weight:800; letter-spacing:0.3px;
+    background:#1D3557; color:#fff; padding:6px 16px;
+    border-radius:20px; max-width:220px; border:none;
+  }
+  #volunteerPill{
+    background:#E3A664;
+    color:#6B3A0F;
+  }
+
+  footer#foot{
+    position:absolute; bottom:16px; right:316px; z-index:4;
+    font-size:11px; color:var(--sub); text-align:right; line-height:1.6;
+    display:none;
+  }
+  @media (min-width:900px){ footer#foot{display:block;} }
+
+  /* ---------- Print-only step strip (fixed top-right) ---------- */
+  #printSteps{
+    display:none !important;
+    position:absolute; top:14mm; right:14mm; z-index:6;
+    transform-origin: top right;
+  }
+  #printSteps .stepRow{
+    display:inline-flex; align-items:center; gap:10px;
+    background:#2B2A26; padding:8px 20px; border-radius:30px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.25);
+  }
+  #printSteps .stepRow span.num{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border-radius:50%;
+    background:#C0392B; color:#fff; font-weight:800; font-size:13px;
+  }
+  #printSteps .stepRow span.txt{ color:#fff; font-weight:700; font-size:13.5px; white-space:nowrap; }
+  #printSteps .stepRow span.arrow{ color:#B7B3A9; font-weight:800; }
+
+  /* ---------- @page / print rules ---------- */
+  @media print{
+    *{
+      -webkit-print-color-adjust:exact !important;
+      print-color-adjust:exact !important;
+      color-adjust:exact !important;
+    }
+    @page{ size: A3 portrait; margin:0; }
+    html,body{ width:100%; height:100%; background:#F5F2EA !important; }
+    #hud, #viewBtns, #bottomRight, #controlsHint, #routeCard, footer#foot{ display:none !important; }
+    #printSteps{
+      display:none !important;
+    }
+    #wrap{ width:100vw; height:100vh; transform: translateY(-8mm); }
+    canvas{ display:none !important; }
+    #printSnapshot{
+      display:block !important;
+      position:absolute; inset:0; width:100%; height:100%;
+      object-fit:fill;
+    }
+
+    .lbl{
+      background:transparent !important; border:none !important; box-shadow:none !important;
+      transform-origin: 50% 50% !important;
+      transform: translate(-50%,-50%) scale(3) !important;
+    }
+    .lbl.section{
+      background:#1D3557 !important; color:#fff !important; border:none !important;
+      transform-origin: 50% 50% !important;
+      transform: translate(-50%,-50%) scale(3) !important;
+    }
+    #volunteerPill{
+      background:#E3A664 !important;
+      color:#6B3A0F !important;
+      transform: translate(-50%, calc(-50% - 8mm)) scale(3) !important;
+    }
+    .lbl.current{
+      background:#C0392B !important; color:#fff !important; border-color:#C0392B !important;
+      transform-origin: 50% 50% !important;
+      transform: translate(-50%,-50%) scale(3) !important;
+    }
+    .lbl.small{
+      transform-origin: 50% 50% !important;
+      transform: translate(-50%,-50%) scale(3) !important;
+    }
+  }
+
+
+  #outdoorRoot.hidden, #indoorRoot.hidden{ display:none; }
+  #indoorRoot{ height:100%; }
+
+  #modeSwitch{
+    position:fixed; top:0; left:0; right:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:rgba(15,15,15,0.85); color:#fff; backdrop-filter:blur(6px);
+    padding:8px 14px; font-size:12.5px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.25);
+  }
+  #modeSwitch #modeLabel{ font-weight:700; }
+  #modeSwitch button{
+    border:none; border-radius:8px; padding:7px 12px; font-size:12px; font-weight:700;
+    cursor:pointer; background:#4fd1c5; color:#04201d; white-space:nowrap;
+  }
+  #modeSwitch button:active{ transform:translateY(1px); }
+  #modeToast{
+    position:fixed; top:50px; left:50%; transform:translateX(-50%) translateY(-8px);
+    z-index:100; background:rgba(15,15,15,0.9); color:#fff; font-size:12px;
+    padding:8px 14px; border-radius:10px; opacity:0; pointer-events:none;
+    transition:opacity .25s, transform .25s; max-width:88%; text-align:center;
+  }
+  #modeToast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  #backToOutdoorBtn{
+    background:#122a2e; color:#eaf4f2; border:1px solid #1f4b4f;
+  }
+
+  @media print{
+    #modeSwitch, #modeToast{ display:none !important; }
+    #outdoorRoot{ display:none !important; }
+    #indoorRoot{ display:block !important; }
+  }
+
+</style>
+</head>
+<body>
+
+<script>
+/* ============ 공통 길안내 헬퍼: 카카오맵 → 네이버맵 → 구글맵 → 설치 안내 ============ */
+window.RouteHelper = (function(){
+  function isIOSDevice(){ return /iPad|iPhone|iPod/.test(navigator.userAgent || navigator.vendor || ""); }
+  function installUrl(){
+    return isIOSDevice()
+      ? "https://apps.apple.com/app/id304608425"
+      : "https://play.google.com/store/apps/details?id=net.daum.android.map";
+  }
+  function tryOpenApp(appUrl, waitMs, onFail){
+    let opened = false;
+    function onVis(){ if (document.hidden) opened = true; }
+    document.addEventListener("visibilitychange", onVis);
+    window.location.href = appUrl;
+    setTimeout(function(){
+      document.removeEventListener("visibilitychange", onVis);
+      if (!opened) onFail();
+    }, waitMs);
+  }
+  function goInstall(onStatus){
+    if (onStatus) onStatus("설치된 지도 앱이 없어 카카오맵 설치 페이지로 이동합니다…", "warn");
+    setTimeout(function(){ window.location.href = installUrl(); }, 900);
+  }
+  function tryGoogle(slat, slon, dlat, dlon, onStatus){
+    if (onStatus) onStatus("구글맵 앱으로 넘어갑니다…");
+    const url = `comgooglemaps://?saddr=${slat},${slon}&daddr=${dlat},${dlon}&directionsmode=driving`;
+    tryOpenApp(url, 1500, function(){ goInstall(onStatus); });
+  }
+  function tryNaver(slat, slon, dlat, dlon, dname, onStatus){
+    if (onStatus) onStatus("네이버맵 앱으로 넘어갑니다…");
+    const url = `nmap://route/car?slat=${slat}&slng=${slon}` +
+      `&sname=${encodeURIComponent("현재위치")}` +
+      `&dlat=${dlat}&dlng=${dlon}&dname=${encodeURIComponent(dname || "목적지")}` +
+      `&appname=com.yeongjong.route`;
+    tryOpenApp(url, 1800, function(){ tryGoogle(slat, slon, dlat, dlon, onStatus); });
+  }
+  function tryKakao(slat, slon, dlat, dlon, dname, onStatus){
+    if (onStatus) onStatus("카카오맵 앱을 여는 중…");
+    const url = `kakaomap://route?sp=${slat},${slon}&ep=${dlat},${dlon}&by=CAR`;
+    tryOpenApp(url, 1800, function(){ tryNaver(slat, slon, dlat, dlon, dname, onStatus); });
+  }
+  function start(dlat, dlon, dname, myLatLon, onStatus){
+    dname = dname || "목적지";
+    function go(slat, slon){ tryKakao(slat, slon, dlat, dlon, dname, onStatus); }
+    if (myLatLon) { go(myLatLon.lat, myLatLon.lon); return; }
+    if (!navigator.geolocation) {
+      if (onStatus) onStatus("이 브라우저는 위치 정보를 지원하지 않습니다.", "warn");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      function(pos){ go(pos.coords.latitude, pos.coords.longitude); },
+      function(){
+        if (onStatus) onStatus("위치 정보를 가져올 수 없어 기본 위치 기준으로 안내를 시도합니다.", "warn");
+        go(37.4768546, 126.5233858);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
+  return { start: start, installLinkHref: installUrl, isIOSDevice: isIOSDevice };
+})();
+</script>
+
+<script>
+/* ============ 공통 모드 컨트롤러: 실외 3D 길찾기 <-> 실내 3D 안내도 자동/수동 전환 ============ */
+window.ModeController = (function(){
+  let mode = "outdoor"; // "outdoor" | "indoor"
+  let manualOverride = false;
+  let overrideTimer = null;
+
+  function els(){
+    return {
+      outdoorRoot: document.getElementById("outdoorRoot"),
+      indoorRoot: document.getElementById("indoorRoot"),
+      modeLabel: document.getElementById("modeLabel"),
+      modeToggleBtn: document.getElementById("modeToggleBtn"),
+      modeToast: document.getElementById("modeToast"),
+    };
+  }
+
+  let toastTimer = null;
+  function showToast(msg){
+    const { modeToast } = els();
+    if (!modeToast) return;
+    modeToast.textContent = msg;
+    modeToast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ modeToast.classList.remove("show"); }, 3200);
+  }
+
+  function render(){
+    const { outdoorRoot, indoorRoot, modeLabel, modeToggleBtn } = els();
+    if (!outdoorRoot || !indoorRoot) return;
+    if (mode === "indoor"){
+      outdoorRoot.classList.add("hidden");
+      indoorRoot.classList.remove("hidden");
+      if (modeLabel) modeLabel.textContent = "🏢 센터 내부 3D 안내도";
+      if (modeToggleBtn) modeToggleBtn.textContent = "오시는 길(실외 지도) 보기";
+    } else {
+      indoorRoot.classList.add("hidden");
+      outdoorRoot.classList.remove("hidden");
+      if (modeLabel) modeLabel.textContent = "🧭 오시는 길 3D 지도";
+      if (modeToggleBtn) modeToggleBtn.textContent = "센터 내부 안내도 보기";
+    }
+    window.dispatchEvent(new Event("resize"));
+  }
+
+  function setManual(){
+    manualOverride = true;
+    clearTimeout(overrideTimer);
+    overrideTimer = setTimeout(function(){ manualOverride = false; }, 120000);
+  }
+
+  function switchToIndoor(manual, silent){
+    if (manual) setManual();
+    if (mode === "indoor") return;
+    mode = "indoor";
+    render();
+    if (!silent) showToast("센터에 가까워져 실내 안내도로 전환했습니다");
+  }
+  function switchToOutdoor(manual, silent){
+    if (manual) setManual();
+    if (mode === "outdoor") return;
+    mode = "outdoor";
+    render();
+    if (!silent) showToast("실외 3D 길찾기로 전환했습니다");
+  }
+  function autoUpdate(distMeters, nearM, farM){
+    if (manualOverride) return;
+    if (mode === "outdoor" && distMeters < nearM) switchToIndoor(false);
+    else if (mode === "indoor" && distMeters > farM) switchToOutdoor(false);
+  }
+  function toggle(){
+    if (mode === "indoor") switchToOutdoor(true);
+    else switchToIndoor(true);
+  }
+  function getMode(){ return mode; }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    const { modeToggleBtn } = els();
+    if (modeToggleBtn) modeToggleBtn.addEventListener("click", toggle);
+    render();
+  });
+
+  return { switchToIndoor, switchToOutdoor, autoUpdate, toggle, getMode };
+})();
+</script>
+
+<div id="modeSwitch">
+  <span id="modeLabel">🧭 오시는 길 3D 지도</span>
+  <button id="modeToggleBtn" type="button">센터 내부 안내도 보기</button>
+</div>
+<div id="modeToast"></div>
+
+
+<div id="outdoorRoot">
+
+
+<div id="scene"></div>
+
+<div id="topbar">
+  <h1>오시는 길 3D 지도</h1>
+  <p>정류장·우체국 같은 주요 지표만 크게 강조한 단순한 지도예요. 나머지 건물은 흐리게 배경으로만 보입니다.</p>
+</div>
+
+<div id="legend">
+  <div><span style="background:#4fd1c5"></span>내 위치 · 정류장</div>
+  <div><span style="background:#ffb454"></span>선택한 목적지</div>
+  <div><span style="background:#E3B152"></span>이름 있는 주요 건물</div>
+  <div><span style="background:#23383b"></span>그 외 건물(흐리게)</div>
+  <div><span style="background:#ffffff"></span>이동 경로</div>
+</div>
+
+<div id="hint">지도를 불러온 뒤, 강조된 지표나 건물을 탭하면 목적지로 선택됩니다</div>
+
+<div id="panel">
+  <div id="load-row">
+    <button id="load-btn">내 주변 건물·도로 불러오기</button>
+  </div>
+  <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+    <input type="range" id="radius" min="200" max="15000" step="200" value="350">
+    <span id="radius-val">반경 350m</span>
+  </div>
+  <div id="status">내 위치를 확인하는 중…</div>
+  <button id="reset-btn">목적지·경로 초기화</button>
+  <div id="kakao-row">
+    <button id="kakao-btn" disabled><span class="ic">📍</span>카카오맵 길안내 열기</button>
+  </div>
+  <div id="kakao-dest">희망 목적지: 영종구노인인력개발센터 (운남동우체국 3층)</div>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+/* -----------------------------------------------------------------------
+   기준점: 씬의 (0,0)에 해당하는 실제 위경도. 기존 route.html과 동일한
+   기본값(운남동우체국)을 사용. ?lat=&lon=&name= 으로 다른 기준점도 지정 가능.
+------------------------------------------------------------------------ */
+const params = new URLSearchParams(location.search);
+const ORIGIN = {
+  lat: parseFloat(params.get("lat")) || 37.4768546,
+  lon: parseFloat(params.get("lon")) || 126.5233858,
+  name: params.get("name") || "운남동우체국",
+};
+const SCALE = 1 / 8; // 8m -> 1 유닛 (건물 폭 대비 도로 스케일이 자연스럽게 맞음)
+const MAX_BUILDINGS = 900;
+const MAX_ROADS = 600;
+
+function toLocalXZ(lat, lon) {
+  const R = 6371000;
+  const dLat = (lat - ORIGIN.lat) * Math.PI / 180;
+  const dLon = (lon - ORIGIN.lon) * Math.PI / 180;
+  return {
+    x: dLon * R * Math.cos(ORIGIN.lat * Math.PI / 180),
+    z: -dLat * R,
+  };
+}
+
+/* ---------------------------- Three.js 세팅 ---------------------------- */
+const container = document.getElementById("scene");
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d1b1e);
+scene.fog = new THREE.Fog(0x0d1b1e, 200, 900);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 5000);
+camera.position.set(0, 140, 140);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.minDistance = 15;
+controls.maxDistance = 600;
+controls.enableDamping = true;
+
+scene.add(new THREE.HemisphereLight(0x8fd6d0, 0x0a1518, 1.1));
+const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+sun.position.set(150, 220, 120);
+scene.add(sun);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(3000, 3000),
+  new THREE.MeshStandardMaterial({ color: 0x13363a, roughness: 1 })
+);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+
+const grid = new THREE.GridHelper(1600, 40, 0x1f4b4f, 0x162f32);
+grid.position.y = 0.05;
+scene.add(grid);
+
+/* ---------------------------- 라벨 스프라이트 ---------------------------- */
+function makeLabel(text) {
+  const cvs = document.createElement("canvas");
+  const ctx = cvs.getContext("2d");
+  const pad = 12, fontSize = 26;
+  ctx.font = `600 ${fontSize}px -apple-system, sans-serif`;
+  const w = ctx.measureText(text).width + pad*2;
+  cvs.width = w; cvs.height = fontSize + pad*2;
+  ctx.font = `600 ${fontSize}px -apple-system, sans-serif`;
+  ctx.fillStyle = "rgba(13,27,30,0.85)";
+  ctx.beginPath(); ctx.roundRect(0,0,cvs.width,cvs.height,8); ctx.fill();
+  ctx.fillStyle = "#eaf4f2";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, pad, cvs.height/2);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cvs), depthTest:false }));
+  const f = 0.22;
+  sprite.scale.set(cvs.width*f/10, cvs.height*f/10, 1);
+  return sprite;
+}
+
+// 기준점 마커(참고용)
+const originLabel = makeLabel(ORIGIN.name);
+originLabel.position.set(0, 4, 0);
+scene.add(originLabel);
+
+/* ---------------------------- 내 위치 / 목적지 마커 ---------------------------- */
+const meMarker = new THREE.Group();
+meMarker.add(new THREE.Mesh(
+  new THREE.SphereGeometry(4.4, 24, 24),
+  new THREE.MeshStandardMaterial({ color: 0x4fd1c5, emissive: 0x134f49, emissiveIntensity: 0.6 })
+));
+const meRing = new THREE.Mesh(
+  new THREE.RingGeometry(8, 10, 32),
+  new THREE.MeshBasicMaterial({ color: 0x4fd1c5, side: THREE.DoubleSide, transparent:true, opacity:0.5 })
+);
+meRing.rotation.x = -Math.PI/2; meRing.position.y = 0.2;
+meMarker.add(meRing);
+meMarker.visible = false;
+scene.add(meMarker);
+
+const destMarker = new THREE.Group();
+const destCone = new THREE.Mesh(
+  new THREE.ConeGeometry(7, 20, 20),
+  new THREE.MeshBasicMaterial({ color: 0xffb454 }) // 조명 영향 없이 항상 선명한 오렌지
+);
+destCone.position.y = 10;
+destMarker.add(destCone);
+const destRing = new THREE.Mesh(
+  new THREE.RingGeometry(15, 19.5, 32),
+  new THREE.MeshBasicMaterial({ color: 0xffb454, side: THREE.DoubleSide, transparent: true, opacity: 0.7 })
+);
+destRing.rotation.x = -Math.PI/2;
+destRing.position.y = 0.25;
+destMarker.add(destRing);
+destMarker.visible = false;
+scene.add(destMarker);
+
+let myLatLon = null;
+const NEAR_INDOOR_M = 80;   // 이 거리(m) 안으로 들어오면 실내 안내도로 자동 전환
+const FAR_INDOOR_M = 150;   // 이 거리(m) 밖으로 나가면 실외 지도로 자동 복귀
+function updateMyPosition(lat, lon) {
+  myLatLon = { lat, lon };
+  const { x, z } = toLocalXZ(lat, lon);
+  meMarker.position.set(x*SCALE, 0, z*SCALE);
+  meMarker.visible = true;
+  if (currentDest) drawDirectLine();
+
+  if (window.ModeController) {
+    const distToCenter = Math.hypot(x, z); // ORIGIN(센터) 기준 실거리(m)
+    window.ModeController.autoUpdate(distToCenter, NEAR_INDOOR_M, FAR_INDOOR_M);
+  }
+}
+
+/* ---------------------------- 경로 라인 ---------------------------- */
+let routeLine = null;
+let currentDest = null;
+let directLine = null;
+
+function drawDirectLine() {
+  if (directLine) { scene.remove(directLine); directLine.geometry.dispose(); directLine.material.dispose(); directLine = null; }
+  if (!myLatLon || !currentDest) return;
+  const p1 = toLocalXZ(myLatLon.lat, myLatLon.lon);
+  const p2 = toLocalXZ(currentDest.lat, currentDest.lon);
+  const geo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(p1.x*SCALE, 1.5, p1.z*SCALE),
+    new THREE.Vector3(p2.x*SCALE, 1.5, p2.z*SCALE),
+  ]);
+  const mat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 3, gapSize: 2 });
+  directLine = new THREE.Line(geo, mat);
+  directLine.computeLineDistances();
+  scene.add(directLine);
+}
+
+function drawRoute(coordsLatLon) {
+  if (routeLine) { scene.remove(routeLine); routeLine.geometry.dispose(); routeLine.material.dispose(); }
+  const points = coordsLatLon.map(([lon, lat]) => {
+    const { x, z } = toLocalXZ(lat, lon);
+    return new THREE.Vector3(x*SCALE, 0.8, z*SCALE);
+  });
+  const curve = new THREE.CatmullRomCurve3(points);
+  const tubeGeo = new THREE.TubeGeometry(curve, Math.max(points.length*3, 24), 0.8, 8, false);
+  const tubeMat = new THREE.MeshStandardMaterial({ color: 0xffb454, emissive: 0x3a2400, emissiveIntensity: 0.4 });
+  routeLine = new THREE.Mesh(tubeGeo, tubeMat);
+  scene.add(routeLine);
+}
+function clearRoute() {
+  if (routeLine) { scene.remove(routeLine); routeLine.geometry.dispose(); routeLine.material.dispose(); routeLine = null; }
+  if (directLine) { scene.remove(directLine); directLine.geometry.dispose(); directLine.material.dispose(); directLine = null; }
+  currentDest = null;
+  destMarker.visible = false;
+}
+
+/* ---------------------------- OSM(Overpass) 로딩 ----------------------------
+   보기 쉬운 3D를 위해 "이름이 있는 주요 건물(우체국 등) · 버스정류장" 같은
+   실제 OSM 데이터 기반 주요 지표만 큰 도형 + 라벨로 강조하고,
+   이름 없는 일반 건물은 아주 낮고 흐리게(배경 텍스처처럼) 표시합니다.
+   좁은 골목·인도 같은 보행로는 생략하고, 차가 다니는 주요 도로만 표시합니다.
+-------------------------------------------------------------------------- */
+const MAJOR_ROAD = /^(motorway|trunk|primary|secondary|tertiary|residential|unclassified|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$/;
+const osmGroup = new THREE.Group();
+scene.add(osmGroup);
+const buildingMeshes = [];   // 탭으로 목적지 선택 가능한 대상(건물 + 지표 마커)
+
+async function fetchOsm(lat, lon, radiusM) {
+  const query = `[out:json][timeout:180];(
+    way["building"](around:${radiusM},${lat},${lon});
+    way["highway"~"^(motorway|trunk|primary|secondary|tertiary|residential|unclassified|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$"](around:${radiusM},${lat},${lon});
+    node["highway"="bus_stop"](around:${radiusM},${lat},${lon});
+    node["public_transport"="platform"](around:${radiusM},${lat},${lon});
+    node["amenity"="post_office"](around:${radiusM},${lat},${lon});
+  );out geom;`;
+  const res = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    body: "data=" + encodeURIComponent(query),
+  });
+  if (!res.ok) throw new Error("OSM 서버 응답 오류 (트래픽 제한일 수 있습니다. 잠시 후 다시 시도해주세요)");
+  return res.json();
+}
+
+function clearOsm() {
+  osmGroup.traverse(c => { c.geometry?.dispose?.(); c.material?.dispose?.(); });
+  osmGroup.clear();
+  buildingMeshes.length = 0;
+}
+
+function addBuilding(el) {
+  const raw = el.geometry.filter(Boolean);
+  if (raw.length < 3) return;
+  let pts = raw.map(p => toLocalXZ(p.lat, p.lon));
+  if (pts.length > 1 && pts[0].x === pts[pts.length-1].x && pts[0].z === pts[pts.length-1].z) pts.pop();
+  if (pts.length < 3) return;
+
+  const shape = new THREE.Shape(pts.map(p => new THREE.Vector2(p.x*SCALE, -p.z*SCALE)));
+  const tags = el.tags || {};
+  const named = !!tags.name;
+
+  let realHeight = 9;
+  if (tags.height) realHeight = parseFloat(tags.height) || realHeight;
+  else if (tags["building:levels"]) realHeight = (parseFloat(tags["building:levels"]) || 3) * 3;
+  // 이름 있는 주요 건물은 실제 높이대로 도드라지게, 이름 없는 일반 건물은
+  // 낮고 납작하게 눌러서 배경처럼 보이게 만듭니다.
+  const height = named ? Math.max(realHeight, 12) : Math.min(realHeight, 4);
+
+  let geo;
+  try {
+    geo = new THREE.ExtrudeGeometry(shape, { depth: height*SCALE, bevelEnabled: false });
+  } catch (e) { return; } // 자기교차 등 이상 폴리곤은 건너뜀
+  geo.rotateX(-Math.PI/2);
+
+  const mat = named
+    ? new THREE.MeshStandardMaterial({ color: 0xE3B152, roughness: 0.7, emissive: 0x3a2400, emissiveIntensity: 0.15 })
+    : new THREE.MeshStandardMaterial({ color: 0x23383b, roughness: 1, transparent: true, opacity: 0.55 });
+  const mesh = new THREE.Mesh(geo, mat);
+  const centroid = raw.reduce((a,p)=>({lat:a.lat+p.lat/raw.length, lon:a.lon+p.lon/raw.length}), {lat:0,lon:0});
+  mesh.userData = { centroid, name: tags.name || null, landmark: named };
+  osmGroup.add(mesh);
+  buildingMeshes.push(mesh);
+
+  if (named) {
+    const c = toLocalXZ(centroid.lat, centroid.lon);
+    const label = makeLabel(tags.name);
+    label.position.set(c.x*SCALE, height*SCALE + 3.5, c.z*SCALE);
+    osmGroup.add(label);
+  }
+}
+
+function addRoad(el) {
+  const raw = el.geometry.filter(Boolean);
+  if (raw.length < 2) return;
+  const pts = raw.map(p => {
+    const { x, z } = toLocalXZ(p.lat, p.lon);
+    return new THREE.Vector3(x*SCALE, 0.3, z*SCALE);
+  });
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x3a5a5c }));
+  osmGroup.add(line);
+}
+
+const LANDMARK_ICON = { bus: "🚌", post: "📮" };
+function addLandmarkNode(el, kind, fallbackName) {
+  if (el.lat == null || el.lon == null) return;
+  const tags = el.tags || {};
+  const name = tags.name || fallbackName;
+  const { x, z } = toLocalXZ(el.lat, el.lon);
+  const px = x*SCALE, pz = z*SCALE;
+
+  const group = new THREE.Group();
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.25, 0.25, 5, 8),
+    new THREE.MeshStandardMaterial({ color: 0x4fd1c5, roughness: 0.6 })
+  );
+  pole.position.set(px, 2.5, pz);
+  group.add(pole);
+  const cap = new THREE.Mesh(
+    new THREE.SphereGeometry(1.5, 16, 16),
+    new THREE.MeshStandardMaterial({ color: 0x4fd1c5, emissive: 0x134f49, emissiveIntensity: 0.5 })
+  );
+  cap.position.set(px, 5.2, pz);
+  group.add(cap);
+  osmGroup.add(group);
+
+  const label = makeLabel(`${LANDMARK_ICON[kind] || "📍"} ${name}`);
+  label.position.set(px, 8.5, pz);
+  osmGroup.add(label);
+
+  // 탭으로 목적지 선택도 가능하도록 보이지 않는 큰 클릭 판을 붙여둡니다.
+  const hit = new THREE.Mesh(
+    new THREE.SphereGeometry(4, 8, 8),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  hit.position.set(px, 4, pz);
+  hit.userData = { centroid: { lat: el.lat, lon: el.lon }, name, landmark: true };
+  osmGroup.add(hit);
+  buildingMeshes.push(hit);
+}
+
+function distFromCenter(el, center) {
+  const p = el.type === "node" ? el : (el.geometry && el.geometry.find(Boolean));
+  if (!p) return Infinity;
+  const dx = (p.lon - center.lon) * 111320 * Math.cos(center.lat * Math.PI/180);
+  const dy = (p.lat - center.lat) * 110540;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+function buildFromOsm(data, center) {
+  clearOsm();
+  const elements = data.elements.filter(el => (el.type === "way" && el.geometry) || (el.type === "node" && el.lat != null));
+  // 반경이 커서 상한을 넘길 경우, 중심점에서 가까운 것부터 우선 표시
+  elements.sort((a, b) => distFromCenter(a, center) - distFromCenter(b, center));
+
+  let bCount = 0, namedCount = 0, rCount = 0, lCount = 0, truncated = false;
+  for (const el of elements) {
+    const tags = el.tags || {};
+    if (el.type === "way" && tags.building && bCount < MAX_BUILDINGS) {
+      addBuilding(el); bCount++; if (tags.name) namedCount++;
+    }
+    else if (el.type === "way" && tags.highway && MAJOR_ROAD.test(tags.highway) && rCount < MAX_ROADS) { addRoad(el); rCount++; }
+    else if (el.type === "node" && (tags.highway === "bus_stop" || tags.public_transport === "platform")) { addLandmarkNode(el, "bus", "버스정류장"); lCount++; }
+    else if (el.type === "node" && tags.amenity === "post_office") { addLandmarkNode(el, "post", "우체국"); lCount++; }
+    else if (el.type === "way" && tags.building) truncated = true;
+  }
+  return { bCount, namedCount, rCount, lCount, truncated };
+}
+
+/* ---------------------------- 경로 요청 ---------------------------- */
+async function fetchRoute(from, to) {
+  const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("경로 검색 실패");
+  const data = await res.json();
+  if (!data.routes || !data.routes.length) throw new Error("경로를 찾을 수 없습니다");
+  return data.routes[0];
+}
+
+async function goToDestination(destLat, destLon, label) {
+  currentDest = { lat: destLat, lon: destLon };
+  destName = label || null;
+  const dPos = toLocalXZ(destLat, destLon);
+  destMarker.position.set(dPos.x*SCALE, 0, dPos.z*SCALE);
+  destMarker.visible = true;
+  drawDirectLine();
+  resetBtn.style.display = "inline-block";
+
+  if (!myLatLon) { setStatus("내 위치를 아직 확인할 수 없습니다.", true); return; }
+  setStatus(`${label} 경로를 찾는 중…`);
+  try {
+    const route = await fetchRoute(myLatLon, { lat: destLat, lon: destLon });
+    drawRoute(route.geometry.coordinates);
+    const km = (route.distance/1000).toFixed(2);
+    const min = Math.round(route.duration/60);
+    setStatus(`${label} · 약 ${km}km · 차량 기준 ${min}분`, false, true);
+  } catch (e) {
+    setStatus(e.message || "경로를 불러오지 못했습니다.", true);
+  }
+  syncKakaoDest();
+}
+
+/* ---------------------------- 카카오맵 길안내 연동 (공통 RouteHelper 사용) ---------------------------- */
+const kakaoBtn = document.getElementById("kakao-btn");
+const kakaoDestEl = document.getElementById("kakao-dest");
+const CENTER_DEST = {
+  lat: ORIGIN.lat, lon: ORIGIN.lon,
+  name: "영종구노인인력개발센터 (운남동우체국 3층)",
+};
+
+function pickDest() {
+  if (currentDest) {
+    return { lat: currentDest.lat, lon: currentDest.lon, name: destName || "선택한 건물" };
+  }
+  return CENTER_DEST;
+}
+let destName = null;
+function syncKakaoDest() {
+  const d = pickDest();
+  kakaoDestEl.textContent = `길안내 목적지: ${d.name}`;
+}
+
+function startKakaoRoute() {
+  const d = pickDest();
+  destName = d.name;
+  window.RouteHelper.start(d.lat, d.lon, d.name, myLatLon, (msg, level) => setStatus(msg, level === "warn"));
+}
+kakaoBtn.addEventListener("click", startKakaoRoute);
+kakaoBtn.disabled = false;
+syncKakaoDest();
+
+/* ---------------------------- 건물 탭 -> 목적지 ---------------------------- */
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+renderer.domElement.addEventListener("click", (ev) => {
+  pointer.x = (ev.clientX / innerWidth) * 2 - 1;
+  pointer.y = -(ev.clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(buildingMeshes, false);
+  if (!hits.length) return;
+  const b = hits[0].object;
+  const { centroid, name, landmark } = b.userData;
+  goToDestination(centroid.lat, centroid.lon, name || (landmark ? "선택한 지표" : "선택한 건물"));
+});
+
+/* ---------------------------- UI ---------------------------- */
+const loadBtn = document.getElementById("load-btn");
+const resetBtn = document.getElementById("reset-btn");
+const statusEl = document.getElementById("status");
+const radiusInput = document.getElementById("radius");
+const radiusVal = document.getElementById("radius-val");
+const hintEl = document.getElementById("hint");
+
+radiusInput.addEventListener("input", () => {
+  radiusVal.textContent = `반경 ${radiusInput.value}m`;
+});
+
+function setStatus(msg, warn=false, good=false) {
+  statusEl.textContent = msg;
+  statusEl.className = warn ? "warn" : good ? "good" : "";
+}
+
+loadBtn.addEventListener("click", async () => {
+  const center = myLatLon || ORIGIN;
+  const radius = Number(radiusInput.value);
+  loadBtn.disabled = true;
+  setStatus("OSM 데이터를 불러오는 중… (건물 수에 따라 몇 초 걸릴 수 있어요)");
+  try {
+    const data = await fetchOsm(center.lat, center.lon, radius);
+    const { bCount, namedCount, rCount, lCount, truncated } = buildFromOsm(data, center);
+    const highlighted = namedCount + lCount;
+    setStatus(
+      highlighted > 0
+        ? `주요 지표 ${highlighted}곳을 강조 표시했습니다. (주변 건물 ${bCount}개는 흐리게, 도로 ${rCount}개)`
+        : `이 주변에는 이름이 등록된 주요 지표가 적습니다. (주변 건물 ${bCount}개, 도로 ${rCount}개)`,
+      false, highlighted > 0
+    );
+    hintEl.style.opacity = (bCount || lCount) ? "1" : "0";
+  } catch (e) {
+    setStatus(e.message || "불러오기에 실패했습니다.", true);
+  } finally {
+    loadBtn.disabled = false;
+  }
+});
+
+resetBtn.addEventListener("click", () => {
+  clearRoute();
+  resetBtn.style.display = "none";
+  setStatus("목적지가 초기화되었습니다. 지도 위 건물을 다시 탭해보세요.");
+});
+
+/* ---------------------------- 실시간 GPS ---------------------------- */
+if ("geolocation" in navigator) {
+  navigator.geolocation.watchPosition(
+    (pos) => {
+      updateMyPosition(pos.coords.latitude, pos.coords.longitude);
+      if (statusEl.textContent.startsWith("내 위치를 확인")) {
+        setStatus("내 위치 확인됨. '내 주변 건물·도로 불러오기'를 눌러주세요.");
+      }
+    },
+    () => {
+      setStatus("위치 권한이 거부되어 기준점(" + ORIGIN.name + ")으로 대체합니다.", true);
+      updateMyPosition(ORIGIN.lat, ORIGIN.lon);
+    },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+  );
+} else {
+  setStatus("이 브라우저는 위치 확인을 지원하지 않습니다.", true);
+  updateMyPosition(ORIGIN.lat, ORIGIN.lon);
+}
+
+/* ---------------------------- 렌더 루프 ---------------------------- */
+function animate() {
+  requestAnimationFrame(animate);
+  meRing.rotation.z += 0.01;
+  destRing.rotation.z -= 0.015;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener("resize", () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+
+</div>
+
+<div id="indoorRoot" class="hidden">
+
+<div id="wrap">
+
+  <div id="printSteps">
+    <div class="stepRow">
+      <span class="num">1</span><span class="txt">방화문 앞(외부)</span>
+      <span class="arrow">→</span>
+      <span class="num">2</span><span class="txt">문 통과 후 복도 직진</span>
+      <span class="arrow">→</span>
+      <span class="num">3</span><span class="txt">노란색 교육장(노인일자리 신청 장소)</span>
+    </div>
+  </div>
+
+  <div id="viewBtns">
+    <button id="btnDefault">기본 시점</button>
+    <button id="btnTop">위에서 보기</button>
+    <button id="btnFront">정면에서 보기</button>
+    <button id="backToOutdoorBtn">🧭 오시는 길(실외 지도)</button>
+  </div>
+
+  <div id="routeCard">
+    <span class="destTag">길 안내</span>
+    <h2>영종구노인인력개발센터</h2>
+    <div class="addr">인천광역시 영종구 쪽빛하늘로 21<br>(운남동우체국 3층) · 032-752-5583</div>
+    <button class="bigBtn" id="routeStart"><span class="ic">📍</span>카카오맵으로 길 안내 시작</button>
+    <div class="fallback">
+      카카오맵이 없으면 네이버·구글 앱으로 자동 넘어갑니다.<br>
+      안 열릴 때: <a id="kakaoLink" href="#">카카오맵 설치</a>
+    </div>
+    <div class="hdl">상단 3D 안내도에서 공간을 클릭하면<br>자세한 설명을 볼 수 있습니다.</div>
+  </div>
+
+  <div id="bottomRight">
+    <div id="infoPanel">
+      <span class="close" id="infoClose">✕</span>
+      <span class="tag" id="infoTag"></span>
+      <h2 id="infoName"></h2>
+      <p id="infoDesc"></p>
+    </div>
+  </div>
+
+  <footer id="foot">
+    영종구 노인인력개발센터 032-752-5583<br>
+    영종구 자원봉사센터 032-777-1365<br>
+    운영시간 09:00–18:00 (공휴일·토·일 휴무)
+  </footer>
+
+  <div id="labelLayer" style="position:absolute; inset:0; pointer-events:none; z-index:3;"></div>
+</div>
+
+<script>
+const wrap = document.getElementById('wrap');
+const labelLayer = document.getElementById('labelLayer');
+
+// Print-only static snapshot of the WebGL canvas (avoids browsers darkening/mangling
+// live WebGL content when rasterizing the print page)
+const printSnapshot = document.createElement('img');
+printSnapshot.id = 'printSnapshot';
+wrap.appendChild(printSnapshot);
+
+
+// ---------- Scene setup ----------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xF5F2EA);
+
+const camera = new THREE.PerspectiveCamera(42, wrap.clientWidth/wrap.clientHeight, 0.1, 400);
+const renderer = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+renderer.setClearColor(0xF5F2EA, 1);
+wrap.insertBefore(renderer.domElement, labelLayer);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+const dLight = new THREE.DirectionalLight(0xffffff, 0.65);
+dLight.position.set(8,14,6);
+scene.add(dLight);
+const dLight2 = new THREE.DirectionalLight(0xffffff, 0.25);
+dLight2.position.set(-6,8,-8);
+scene.add(dLight2);
+
+// ---------- Floor ----------
+const floorGeo = new THREE.PlaneGeometry(20, 12);
+const floorMat = new THREE.MeshLambertMaterial({color:0xEFEADB});
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI/2;
+floor.position.y = -0.01;
+scene.add(floor);
+
+const grid = new THREE.GridHelper(20, 40, 0xDCD5C0, 0xE9E3D2);
+grid.position.y = 0;
+scene.add(grid);
+
+// ---------- Room data ----------
+const PALETTE = {
+  blue:   [0xBFD9EC, 0x8FB6D3],
+  gold:   [0xF2E1AD, 0xD9BE72],
+  orange: [0xF8DAB4, 0xE3A664],
+  gray:   [0xDEDBD3, 0xB7B3A9],
+  green:  [0xCFE9D6, 0x98C7A6]
+};
+
+const COL_W = 1.8, COL_GAP = 0.35, ROOM_D = 2.0, CORR_D = 2.3;
+const colX = i => (i-2)*(COL_W+COL_GAP);
+const topZ = -(CORR_D/2 + ROOM_D/2);
+const botZ =  (CORR_D/2 + ROOM_D/2);
+
+const rooms = [
+  {name:'회의실',            col:'blue',   x:colX(0), z:topZ, h:1.4, tag:'노인인력개발센터', desc:'회의 및 교육 준비 공간'},
+  {name:'센터장실',          col:'blue',   x:colX(1), z:topZ, h:1.4, tag:'노인인력개발센터', desc:'센터장 근무 공간'},
+  {name:'사무실',            col:'gold',   x:colX(2), z:topZ, h:1.5, tag:'노인인력개발센터', desc:'행정 업무 공간'},
+  {name:'휴게실',            col:'blue',   x:colX(3), z:topZ, h:1.4, tag:'노인인력개발센터', desc:'직원 휴게 공간 (정규직·계약직 담당자용)'},
+  {name:'교육장',            col:'gold',   x:colX(4), z:topZ, h:1.6, tag:'노인인력개발센터', desc:'노인일자리 신청 접수처', labelY:1.05, labelXOffset:0.5},
+
+  {name:'자원봉사센터\n사무실', col:'orange', x:colX(0), z:botZ, h:1.4, tag:'자원봉사센터', desc:'자원봉사센터 행정 공간'},
+  {name:'자원봉사센터\n교육실', col:'orange', x:(colX(1)+colX(2))/2, w:(COL_W*2+COL_GAP), z:botZ, h:1.5, tag:'자원봉사센터', desc:'자원봉사 교육 공간'},
+  {name:'창고',              col:'gray',   x:colX(3), z:botZ, h:1.2, tag:'공용', desc:'물품 보관 공간'},
+  {name:'엘리베이터',        col:'green',  x:colX(4), z:botZ, h:1.1, tag:'공용', desc:'여기서 내리면 안내가 시작됩니다'},
+];
+
+const fireDoorX = colX(-1.05);
+
+const procGroup = new THREE.Group();
+scene.add(procGroup);
+
+const roomMeshes = [];
+const labelEls = [];
+
+function makeRoomBox(room){
+  const [topHex, sideHex] = PALETTE[room.col];
+  const w = room.w || COL_W, d = ROOM_D, h = room.h;
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const materials = [
+    new THREE.MeshLambertMaterial({color:sideHex}),
+    new THREE.MeshLambertMaterial({color:sideHex}),
+    new THREE.MeshLambertMaterial({color:topHex}),
+    new THREE.MeshLambertMaterial({color:0x3a3830}),
+    new THREE.MeshLambertMaterial({color:sideHex}),
+    new THREE.MeshLambertMaterial({color:sideHex}),
+  ];
+  const mesh = new THREE.Mesh(geo, materials);
+  mesh.position.set(room.x, h/2, room.z);
+  mesh.userData.room = room;
+  procGroup.add(mesh);
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geo),
+    new THREE.LineBasicMaterial({color:0x33312B, linewidth:1})
+  );
+  edges.position.copy(mesh.position);
+  procGroup.add(edges);
+
+  roomMeshes.push(mesh);
+
+  const el = document.createElement('div');
+  el.className = 'lbl';
+  el.innerHTML = room.name.replace(/\n/g, '<br>');
+  labelLayer.appendChild(el);
+  labelEls.push({el, room:{x: room.x + (room.labelXOffset||0), z: room.z + (room.labelZOffset||0)}, worldY: room.labelY !== undefined ? room.labelY : h/2 + 0.36});
+  return mesh;
+}
+
+rooms.forEach(makeRoomBox);
+
+// Section title above the top row
+(function(){
+  const cx = colX(4) + 0.5;
+  const maxH = Math.max(...rooms.filter(r=>r.z===topZ).map(r=>r.h));
+  const el = document.createElement('div');
+  el.className = 'lbl section';
+  el.textContent = '노인인력개발센터';
+  labelLayer.appendChild(el);
+  labelEls.push({el, room:{x:cx, z:topZ - 0.6}, worldY: maxH + 1.4});
+
+  const el2 = document.createElement('div');
+  el2.className = 'lbl section';
+  el2.id = 'volunteerPill';
+  el2.textContent = '자원봉사센터';
+  labelLayer.appendChild(el2);
+  const elevator = rooms.find(r=>r.name==='엘리베이터');
+  labelEls.push({el:el2, room:{x:elevator.x, z:elevator.z + 0.6}, worldY: maxH + 1.4});
+})();
+
+// Corridor floor strip
+const corrGeo = new THREE.PlaneGeometry(colX(4)-fireDoorX+COL_W+0.6, CORR_D-0.1);
+const corrMat = new THREE.MeshLambertMaterial({color:0xE7E0CC});
+const corridor = new THREE.Mesh(corrGeo, corrMat);
+corridor.rotation.x = -Math.PI/2;
+corridor.position.set((colX(4)+fireDoorX)/2 + 0.15, 0.01, 0);
+procGroup.add(corridor);
+
+// Fire door block
+const fdGeo = new THREE.BoxGeometry(0.5, 1.6, CORR_D-0.2);
+const fdMat = new THREE.MeshLambertMaterial({color:0x8a8676});
+const fireDoor = new THREE.Mesh(fdGeo, fdMat);
+fireDoor.position.set(fireDoorX, 0.8, 0);
+procGroup.add(fireDoor);
+const fdEdges = new THREE.LineSegments(new THREE.EdgesGeometry(fdGeo), new THREE.LineBasicMaterial({color:0x33312B}));
+fdEdges.position.copy(fireDoor.position);
+procGroup.add(fdEdges);
+labelEls.push({el:(()=>{const e=document.createElement('div');e.className='lbl small';e.textContent='방화문';labelLayer.appendChild(e);return e;})(), room:{x:fireDoorX,z:0}, worldY:1.75});
+
+// Current-location marker
+(function(){
+  const cx = fireDoorX - 0.65;
+  const cz = 0;
+  const starGeo = new THREE.ConeGeometry(0.2, 0.45, 4);
+  const starMat = new THREE.MeshLambertMaterial({color:0xC0392B});
+  const marker = new THREE.Mesh(starGeo, starMat);
+  marker.position.set(cx, 0.5, cz);
+  marker.rotation.y = Math.PI/4;
+  procGroup.add(marker);
+
+  const ringGeo = new THREE.RingGeometry(0.22, 0.3, 24);
+  const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({color:0xC0392B, side:THREE.DoubleSide}));
+  ring.rotation.x = -Math.PI/2;
+  ring.position.set(cx, 0.02, cz);
+  procGroup.add(ring);
+
+  const el = document.createElement('div');
+  el.className = 'lbl current';
+  el.textContent = '★ 현재 위치';
+  labelLayer.appendChild(el);
+  labelEls.push({el, room:{x:cx, z:cz}, worldY:1.15});
+})();
+
+// Direction arrow along corridor
+(function(){
+  const y = 0.03;
+  const zArrow = -CORR_D/2 + 0.35;
+  const xStart = fireDoorX+0.5, xEnd = colX(4)-0.3;
+  const pts = [
+    new THREE.Vector3(xStart, y, zArrow),
+    new THREE.Vector3(xEnd, y, zArrow)
+  ];
+  const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+  const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({color:0xC0392B}));
+  procGroup.add(line);
+  const headGeo = new THREE.ConeGeometry(0.13, 0.32, 12);
+  const head = new THREE.Mesh(headGeo, new THREE.MeshLambertMaterial({color:0xC0392B}));
+  head.position.set(xEnd+0.05, y+0.02, zArrow);
+  head.rotation.z = -Math.PI/2;
+  procGroup.add(head);
+})();
+
+// ---------- Blender GLB 연동 ----------
+// 옆에 building.glb(블렌더에서 내보낸 glTF) 파일을 두면 자동으로 대체 표시됩니다.
+let glbLoaded = false;
+if (typeof THREE.GLTFLoader !== 'undefined') {
+  const loader = new THREE.GLTFLoader();
+  loader.load(
+    './building.glb',
+    function(gltf){
+      procGroup.visible = false;
+      glbLoaded = true;
+      gltf.scene.traverse(o=>{
+        if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; }
+      });
+      scene.add(gltf.scene);
+      const box = new THREE.Box3().setFromObject(gltf.scene);
+      if (!box.isEmpty()) {
+        const c = new THREE.Vector3(); box.getCenter(c);
+        const size = new THREE.Vector3(); box.getSize(size);
+        const scale = Math.max(size.x, size.z) > 0 ? 10 / Math.max(size.x, size.z) : 1;
+        gltf.scene.scale.setScalar(scale);
+        gltf.scene.position.sub(new THREE.Vector3(c.x * scale, box.min.y * scale, c.z * scale));
+      }
+    },
+    undefined,
+    function(){
+      console.log('building.glb 미존재 — 기본 3D 안내도 사용');
+    }
+  );
+}
+
+// ---------- Camera control (custom orbit) ----------
+const target = new THREE.Vector3(-0.3, 0.4, 0);
+let radius = 15, theta = Math.PI*0.28, phi = 1.0;
+const MIN_PHI=0.25, MAX_PHI=1.45, MIN_R=6, MAX_R=26;
+
+function updateCamera(){
+  const sinPhi = Math.sin(phi);
+  camera.position.set(
+    target.x + radius*sinPhi*Math.sin(theta),
+    target.y + radius*Math.cos(phi),
+    target.z + radius*sinPhi*Math.cos(theta)
+  );
+  camera.lookAt(target);
+}
+updateCamera();
+
+let dragging=false, lastX=0, lastY=0, moved=false;
+renderer.domElement.addEventListener('pointerdown', e=>{
+  dragging=true; lastX=e.clientX; lastY=e.clientY; moved=false;
+});
+window.addEventListener('pointerup', ()=>dragging=false);
+window.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  const dx = e.clientX-lastX, dy = e.clientY-lastY;
+  if(Math.abs(dx)+Math.abs(dy) > 3) moved=true;
+  theta -= dx*0.006;
+  phi = Math.min(MAX_PHI, Math.max(MIN_PHI, phi - dy*0.006));
+  lastX=e.clientX; lastY=e.clientY;
+  updateCamera();
+});
+renderer.domElement.addEventListener('wheel', e=>{
+  e.preventDefault();
+  radius = Math.min(MAX_R, Math.max(MIN_R, radius + e.deltaY*0.01));
+  updateCamera();
+}, {passive:false});
+
+// preset views
+function animateTo(newRadius, newTheta, newPhi){
+  const sr=radius, st=theta, sp=phi;
+  const dur=550, t0=performance.now();
+  function step(t){
+    const k = Math.min(1,(t-t0)/dur);
+    const ease = 1-Math.pow(1-k,3);
+    radius = sr+(newRadius-sr)*ease;
+    theta  = st+(newTheta-st)*ease;
+    phi    = sp+(newPhi-sp)*ease;
+    updateCamera();
+    if(k<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+document.getElementById('btnDefault').onclick=()=>animateTo(15, Math.PI*0.28, 1.0);
+document.getElementById('btnTop').onclick=()=>animateTo(15, theta, 0.28);
+document.getElementById('btnFront').onclick=()=>animateTo(13, 0.0, 1.15);
+
+// ---------- Raycast click ----------
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const infoPanel = document.getElementById('infoPanel');
+const infoTag = document.getElementById('infoTag');
+const infoName = document.getElementById('infoName');
+const infoDesc = document.getElementById('infoDesc');
+const tagColors = {'노인인력개발센터':['#F2E1AD','#8a6d1f'], '자원봉사센터':['#F8DAB4','#a15a15'], '공용':['#DEDBD3','#5c584d']};
+
+let selected=null;
+renderer.domElement.addEventListener('click', e=>{
+  if(moved) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(roomMeshes);
+  if(hits.length){
+    const mesh = hits[0].object;
+    if(selected) selected.material.forEach(m=>m.emissive && m.emissive.setHex(0x000000));
+    selected = mesh;
+    mesh.material.forEach(m=> m.emissive && m.emissive.setHex(0x2a1a10));
+    mesh.material.forEach(m=> m.emissive && m.emissiveIntensity !== undefined ? m.emissiveIntensity=0.25 : null);
+    const r = mesh.userData.room;
+    infoTag.textContent = r.tag;
+    const [bg,fg] = tagColors[r.tag] || ['#eee','#333'];
+    infoTag.style.background=bg; infoTag.style.color=fg;
+    infoName.textContent = r.name.replace(/\n/g, ' ') + (r.current ? ' ★' : '');
+    infoDesc.textContent = r.desc;
+    infoPanel.classList.add('show');
+  }
+});
+document.getElementById('infoClose').onclick=()=>infoPanel.classList.remove('show');
+
+// ---------- Label projection ----------
+const tmpV = new THREE.Vector3();
+function updateLabels(){
+  labelEls.forEach(item=>{
+    tmpV.set(item.room.x, item.worldY, item.room.z);
+    tmpV.project(camera);
+    const behind = tmpV.z > 1;
+    const x = (tmpV.x*0.5+0.5)*wrap.clientWidth;
+    const y = (-(tmpV.y*0.5)+0.5)*wrap.clientHeight;
+    const showAs = item.display || 'block';
+    item.el.style.display = behind ? 'none' : showAs;
+    item.el.style.left = x+'px';
+    item.el.style.top = y+'px';
+  });
+}
+
+function loop(){
+  updateLabels();
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+
+window.addEventListener('resize', ()=>{
+  camera.aspect = wrap.clientWidth/wrap.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+});
+
+// ---------- Print handling ----------
+let savedView = null;
+function fitForPrint(){
+  savedView = {radius, theta, phi, targetX:target.x, targetZ:target.z};
+  camera.aspect = wrap.clientWidth/wrap.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  theta = -Math.PI/2;
+  phi = 0.8;
+  radius = 15;
+  target.x = -1.0;
+  target.z = 0;
+  updateCamera();
+  renderer.render(scene, camera);
+  updateLabels();
+  printSnapshot.src = renderer.domElement.toDataURL('image/png');
+  setTimeout(()=>{
+    camera.aspect = wrap.clientWidth/wrap.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+    updateCamera();
+    renderer.render(scene, camera);
+    updateLabels();
+    printSnapshot.src = renderer.domElement.toDataURL('image/png');
+  }, 50);
+}
+function restoreAfterPrint(){
+  if(!savedView) return;
+  radius = savedView.radius; theta = savedView.theta; phi = savedView.phi;
+  target.x = savedView.targetX; target.z = savedView.targetZ;
+  savedView = null;
+  camera.aspect = wrap.clientWidth/wrap.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  updateCamera();
+  updateLabels();
+}
+window.addEventListener('beforeprint', fitForPrint);
+window.addEventListener('afterprint', restoreAfterPrint);
+if(window.matchMedia){
+  window.matchMedia('print').addListener(mql=>{
+    if(mql.matches) fitForPrint(); else restoreAfterPrint();
+  });
+}
+
+// ==========================================
+// 길 안내 (공통 RouteHelper 사용)
+// 목적지 : 영종구노인인력개발센터 (운남동우체국 3층)
+// ==========================================
+const destLat = 37.4768546;
+const destLon = 126.5233858;
+const destName = "영종구노인인력개발센터";
+
+function setStatus(msg){
+  const fb = document.querySelector('#routeCard .fallback');
+  if (fb) fb.innerHTML = msg ? msg.replace(/</g,'&lt;') : '카카오맵이 없으면 네이버·구글 앱으로 자동 넘어갑니다.<br>안 열릴 때: <a id="kakaoLink" href="#">카카오맵 설치</a>';
+  bindKakaoLink();
+}
+function bindKakaoLink(){
+  const a = document.getElementById('kakaoLink');
+  if (a && window.RouteHelper) a.href = window.RouteHelper.installLinkHref();
+}
+
+function startRouting(){
+  window.RouteHelper.start(destLat, destLon, destName, null, function(msg){ setStatus(msg); });
+}
+
+document.getElementById('routeStart').onclick = startRouting;
+bindKakaoLink();
+
+// ---------- 실외 길찾기로 돌아가기 ----------
+const backBtn = document.getElementById('backToOutdoorBtn');
+if (backBtn) {
+  backBtn.addEventListener('click', function(){
+    if (window.ModeController) window.ModeController.switchToOutdoor(true);
+  });
+}
+</script>
+
+</div>
+
+</body>
+</html>
